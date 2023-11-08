@@ -1,0 +1,5 @@
+python-dotenv
+requests
+email-validator
+py3dns
+discord.py
