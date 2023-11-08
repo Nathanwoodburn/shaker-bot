@@ -14,7 +14,7 @@ async def send_domain(user, email):
         await user.send("Your email is invalid")
         return
     
-    response = requests.post("https://faucet.woodburn.au/api?email=" + email+"&name="+user.name + "&key=" + os.getenv('FAUCET_KEY'))
+    response = requests.post("https://faucet.woodburn.au/api?email=" + email+"&name="+user.id + "&key=" + os.getenv('FAUCET_KEY'))
     response = response.json()
     if response['success']:
         await user.send("Congratulations! We've sent you a domain to your email")
