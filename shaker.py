@@ -13,6 +13,15 @@ serverIP = os.getenv('DNS_SERVER')
 resolver.nameservers = [serverIP]
 resolver.port = int(os.getenv('DNS_PORT'))
 
+LOCAL = False
+if os.getenv('LOCAL') == "True":
+    LOCAL = True
+
+verified_roles = '/data/roles.json'
+
+if LOCAL:
+    verified_roles = 'roles.json'
+
 
 def check_name(user_id: int, name: str) -> bool:
     try:
@@ -28,7 +37,7 @@ def check_name(user_id: int, name: str) -> bool:
     return False
 
 async def handle_role(member: discord.Member, shouldHaveRole: bool):
-    with open('/data/roles.json', 'r') as f:
+    with open(verified_roles, 'r') as f:
         roles = json.load(f)
 
     key = str(member.guild.id)

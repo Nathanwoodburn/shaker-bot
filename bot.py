@@ -10,17 +10,30 @@ import dns.exception
 import dns.message
 import shaker
 import re
+import datetime
 
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 ADMINID = 0
+LOCAL = False
+if os.getenv('LOCAL') == "True":
+    LOCAL = True
 
 intents = discord.Intents.default()
 intents.members = True
 intents.guilds = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
+
+faucet_messages = []
+
+faucet_roles = '/data/faucet.json'
+verified_roles = '/data/roles.json'
+
+if LOCAL:
+    faucet_roles = 'faucet.json'
+    verified_roles = 'roles.json'
 
 # Commands
 @tree.command(name="faucet", description="Get a free domain")
@@ -32,29 +45,37 @@ async def faucet(ctx, email:str):
 
 
     roles = {}
-    if os.path.exists('/data/faucet.json'):
-        with open('/data/faucet.json', 'r') as f:
+    if os.path.exists(faucet_roles):
+        with open(faucet_roles, 'r') as f:
             roles = json.load(f)
     if str(ctx.guild.id) in roles:
         if roles[str(ctx.guild.id)] in [role.id for role in ctx.user.roles]:
-            await ctx.response.send_message("I'll send you a DM when your domain has been sent",ephemeral=True)
-            await send_domain(ctx.user, email)
+            await ctx.response.send_message("The faucet will gift you a domain when someone approves your request")
+            message = await ctx.channel.send("Approve this gift by reacting to this message with a 👍")            
+            faucet_messages.append({
+                "id": message.id,
+                "email": email,
+                "user": ctx.user.id,
+                "time": datetime.datetime.now()
+            })
+            print(faucet_messages)
+            await message.add_reaction("👍")
             return
     await ctx.response.send_message("You can't claim from the faucet",ephemeral=True)
 
-@tree.command(name="faucet-role", description="Change the role that can use the faucet")
+@tree.command(name="setfaucetrole", description="Change the role that can use the faucet")
 async def faucetrole(ctx,role:discord.Role):
     if ctx.user.id != ADMINID:
         await ctx.response.send_message("You don't have permission to do that",ephemeral=True)
         return
     await ctx.response.send_message("Faucet role set to " + role.name + " for server " + ctx.guild.name,ephemeral=True)
     roles = {}
-    if os.path.exists('/data/faucet.json'):
-        with open('/data/faucet.json', 'r') as f:
+    if os.path.exists(faucet_roles):
+        with open(faucet_roles, 'r') as f:
             roles = json.load(f)
     
     roles[str(ctx.guild.id)] = role.id
-    with open('/data/faucet.json', 'w') as f:
+    with open(faucet_roles, 'w') as f:
         json.dump(roles, f)
 
 @tree.command(name="setverifiedrole", description="Set the role that verified users get")
@@ -72,15 +93,15 @@ async def setverifiedrole(ctx,role:discord.Role):
         await ctx.response.send_message("I don't have permission to do that",ephemeral=True)
         return
     
-    if not os.path.exists('/data/roles.json'):
-        with open('/data/roles.json', 'w') as f:
+    if not os.path.exists(verified_roles):
+        with open(verified_roles, 'w') as f:
             json.dump({}, f)
 
-    with open('/data/roles.json', 'r') as f:
+    with open(verified_roles, 'r') as f:
         roles = json.load(f)
 
     roles[str(ctx.guild.id)] = role.id
-    with open('/data/roles.json', 'w') as f:
+    with open(verified_roles, 'w') as f:
         json.dump(roles, f)   
     
     await ctx.response.send_message("Verified role set to " + role.name + " for server " + ctx.guild.name,ephemeral=True)
@@ -154,6 +175,56 @@ async def on_message(message):
         return
     if not message.guild:
         await message.channel.send('Invite this bot into your server by using this link:\nhttps://discord.com/api/oauth2/authorize?client_id=1073940877984153692&permissions=402653184&scope=bot')
+
+# On reaction
+@client.event
+async def on_reaction_add(reaction, user):
+    if user == client.user:
+        return
+    if not reaction.message.guild:
+        return
+    if user.bot:
+        return
+    if reaction.message.author != client.user:
+        return
+    if reaction.emoji != "👍":
+        return
+    
+    print(reaction.message.id)
+    # If it is within 15 minutes
+    for faucet_message in faucet_messages:
+        if faucet_message["id"] == reaction.message.id:
+            if faucet_message["user"] == user.id and user.id != ADMINID:
+                await reaction.message.channel.send("You can't approve your own gift")
+                return
+            
+            # Verify the approver has the shaker role
+            if not os.path.exists(verified_roles):
+                with open(verified_roles, 'w') as f:
+                    json.dump({}, f)
+
+            with open(verified_roles, 'r') as f:
+                roles = json.load(f)
+
+            if str(reaction.message.guild.id) in roles:
+                if roles[str(reaction.message.guild.id)] not in [role.id for role in user.roles]:
+                    await reaction.message.channel.send("You don't have permission to approve this gift")
+                    return
+            else:
+                message = "You don't have permission to approve this gift\n"
+                message += "Run /verify to be eligable to approve gifts"
+                await reaction.message.channel.send(message)     
+                return
+
+            if (datetime.datetime.now() - faucet_message["time"]).total_seconds() > 900:
+                await reaction.message.channel.send("This gift has expired")
+                return
+            
+            resault = await send_domain(faucet_message["user"], faucet_message["email"])   
+            receiver = await client.fetch_user(faucet_message["user"])
+            await receiver.send(resault)
+            faucet_messages.remove(faucet_message)
+            return
 
 
 client.run(TOKEN)
