@@ -208,12 +208,10 @@ async def on_reaction_add(reaction, user):
 
             if str(reaction.message.guild.id) in roles:
                 if roles[str(reaction.message.guild.id)] not in [role.id for role in user.roles]:
-                    await reaction.message.channel.send("You don't have permission to approve this gift")
+                    await reaction.message.channel.send("You don't have permission to approve this gift\nRun /verify to be eligable to approve gifts")
                     return
             else:
-                message = "You don't have permission to approve this gift\n"
-                message += "Run /verify to be eligable to approve gifts"
-                await reaction.message.channel.send(message)     
+                await reaction.message.channel.send("You don't have permission to approve this gift\nRun /verify to be eligable to approve gifts")
                 return
 
             if (datetime.datetime.now() - faucet_message["time"]).total_seconds() > 900:
