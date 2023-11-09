@@ -220,10 +220,13 @@ async def on_reaction_add(reaction, user):
                 await reaction.message.channel.send("This gift has expired")
                 return
             
-            resault = await send_domain(faucet_message["user"], faucet_message["email"])   
+            result = await send_domain(faucet_message["user"], faucet_message["email"])   
             receiver = await client.fetch_user(faucet_message["user"])
-            await receiver.send(resault)
+            await receiver.send(result)
             faucet_messages.remove(faucet_message)
+            # Update message
+            await reaction.message.edit(content="Approved by " + user.name)
+
             return
 
 
