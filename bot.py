@@ -108,7 +108,7 @@ async def setverifiedrole(ctx,role:discord.Role):
     
 @tree.command(name="verify", description="Verifies your ownership of a Handshake name and sets your nickname.")
 async def verify(ctx, domain:str):
-    name_idna = domain.lower().strip().rstrip("/").encode("idna")
+    name_idna = domain.strip().rstrip("/").encode("idna")
     name_ascii = name_idna.decode("ascii")
     
     parts = name_ascii.split(".")
