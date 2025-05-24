@@ -50,8 +50,8 @@ async def faucet(ctx, email:str):
             roles = json.load(f)
     if str(ctx.guild.id) in roles:
         if roles[str(ctx.guild.id)] in [role.id for role in ctx.user.roles]:
-            await ctx.response.send_message("The faucet will gift you a domain when someone approves your request")
-            message = await ctx.channel.send("Approve this gift by reacting to this message with a 👍")            
+            await ctx.response.send_message("The faucet will gift you a domain when someone approves your request",ephemeral=True)
+            message = await ctx.channel.send(f"Faucet request from {ctx.user.name} (<@{ctx.user.id}>)\n\nThis is a gift from the faucet. You will receive a domain when someone approves your request.\n\nPlease approve this gift by reacting to this message with a 👍")
             faucet_messages.append({
                 "id": message.id,
                 "email": email,
